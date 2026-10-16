@@ -1,0 +1,3 @@
+.DS_Store
+# 20 MB zip duplicating assets/frames/day1440/ — never needed by the site
+assets/frames/*.zip

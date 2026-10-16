@@ -1,0 +1,274 @@
+{
+ "101": {
+  "bestFrame": 78,
+  "bracket": 90
+ },
+ "102": {
+  "bestFrame": 50,
+  "bracket": 44
+ },
+ "103": {
+  "bestFrame": 4,
+  "bracket": 61
+ },
+ "104": {
+  "bestFrame": 49,
+  "bracket": 61
+ },
+ "105": {
+  "bestFrame": 46,
+  "bracket": 69
+ },
+ "106": {
+  "bestFrame": 44,
+  "bracket": 66
+ },
+ "107": {
+  "bestFrame": 31,
+  "bracket": 66
+ },
+ "201": {
+  "bestFrame": 79,
+  "bracket": 88
+ },
+ "202": {
+  "bestFrame": 76,
+  "bracket": 93
+ },
+ "203": {
+  "bestFrame": 56,
+  "bracket": 39
+ },
+ "204": {
+  "bestFrame": 59,
+  "bracket": 49
+ },
+ "205": {
+  "bestFrame": 60,
+  "bracket": 66
+ },
+ "206": {
+  "bestFrame": 49,
+  "bracket": 70
+ },
+ "207": {
+  "bestFrame": 46,
+  "bracket": 66
+ },
+ "208": {
+  "bestFrame": 44,
+  "bracket": 65
+ },
+ "209": {
+  "bestFrame": 43,
+  "bracket": 68
+ },
+ "210": {
+  "bestFrame": 41,
+  "bracket": 35
+ },
+ "211": {
+  "bestFrame": 31,
+  "bracket": 12
+ },
+ "212": {
+  "bestFrame": 33,
+  "bracket": 25
+ },
+ "213": {
+  "bestFrame": 25,
+  "bracket": 31
+ },
+ "214": {
+  "bestFrame": 111,
+  "bracket": 89
+ },
+ "215": {
+  "bestFrame": 109,
+  "bracket": 106
+ },
+ "216": {
+  "bestFrame": 113,
+  "bracket": 4
+ },
+ "217": {
+  "bestFrame": 81,
+  "bracket": 12
+ },
+ "218": {
+  "bestFrame": 84,
+  "bracket": 14
+ },
+ "301": {
+  "bestFrame": 76,
+  "bracket": 90
+ },
+ "302": {
+  "bestFrame": 56,
+  "bracket": 42
+ },
+ "303": {
+  "bestFrame": 62,
+  "bracket": 54
+ },
+ "304": {
+  "bestFrame": 71,
+  "bracket": 5
+ },
+ "305": {
+  "bestFrame": 82,
+  "bracket": 13
+ },
+ "306": {
+  "bestFrame": 85,
+  "bracket": 12
+ },
+ "307": {
+  "bestFrame": 88,
+  "bracket": 12
+ },
+ "308": {
+  "bestFrame": 81,
+  "bracket": 80
+ },
+ "309": {
+  "bestFrame": 43,
+  "bracket": 8
+ },
+ "310": {
+  "bestFrame": 47,
+  "bracket": 69
+ },
+ "311": {
+  "bestFrame": 43,
+  "bracket": 69
+ },
+ "312": {
+  "bestFrame": 38,
+  "bracket": 22
+ },
+ "313": {
+  "bestFrame": 34,
+  "bracket": 27
+ },
+ "314": {
+  "bestFrame": 26,
+  "bracket": 31
+ },
+ "315": {
+  "bestFrame": 116,
+  "bracket": 87
+ },
+ "316": {
+  "bestFrame": 39,
+  "bracket": 101
+ },
+ "401": {
+  "bestFrame": 79,
+  "bracket": 81
+ },
+ "402": {
+  "bestFrame": 71,
+  "bracket": 42
+ },
+ "403": {
+  "bestFrame": 59,
+  "bracket": 47
+ },
+ "404": {
+  "bestFrame": 63,
+  "bracket": 53
+ },
+ "405": {
+  "bestFrame": 77,
+  "bracket": 15
+ },
+ "406": {
+  "bestFrame": 85,
+  "bracket": 15
+ },
+ "407": {
+  "bestFrame": 100,
+  "bracket": 11
+ },
+ "408": {
+  "bestFrame": 85,
+  "bracket": 70
+ },
+ "409": {
+  "bestFrame": 50,
+  "bracket": 12
+ },
+ "410": {
+  "bestFrame": 48,
+  "bracket": 70
+ },
+ "411": {
+  "bestFrame": 44,
+  "bracket": 68
+ },
+ "412": {
+  "bestFrame": 42,
+  "bracket": 35
+ },
+ "413": {
+  "bestFrame": 32,
+  "bracket": 22
+ },
+ "414": {
+  "bestFrame": 33,
+  "bracket": 29
+ },
+ "415": {
+  "bestFrame": 27,
+  "bracket": 35
+ },
+ "416": {
+  "bestFrame": 82,
+  "bracket": 87
+ },
+ "417": {
+  "bestFrame": 108,
+  "bracket": 105
+ },
+ "501": {
+  "bestFrame": 81,
+  "bracket": 81
+ },
+ "502": {
+  "bestFrame": 75,
+  "bracket": 77
+ },
+ "503": {
+  "bestFrame": 58,
+  "bracket": 36
+ },
+ "504": {
+  "bestFrame": 67,
+  "bracket": 12
+ },
+ "506": {
+  "bestFrame": 88,
+  "bracket": 114
+ },
+ "507": {
+  "bestFrame": 13,
+  "bracket": 112
+ },
+ "508": {
+  "bestFrame": 43,
+  "bracket": 68
+ },
+ "509": {
+  "bestFrame": 38,
+  "bracket": 18
+ },
+ "510": {
+  "bestFrame": 34,
+  "bracket": 27
+ },
+ "513": {
+  "bestFrame": 31,
+  "bracket": 101
+ }
+}

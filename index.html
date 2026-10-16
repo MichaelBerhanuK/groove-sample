@@ -1,0 +1,382 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Exterior orbit viewer — reference implementation</title>
+<style>
+  html,body{margin:0;height:100%;background:#11151c;overflow:hidden;
+    font:13px/1.45 ui-sans-serif,system-ui,-apple-system,sans-serif;color:#e8edf5}
+  #stage{position:fixed;inset:0}
+  /* the pre-rendered plate. object-fit:cover + matching FOV math keeps the
+     invisible 3D scene registered to the photo at any window aspect. */
+  #plate{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    image-rendering:auto;display:block}
+  #gl{position:absolute;inset:0;width:100%;height:100%}
+  #labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .lab{position:absolute;transform:translate(-50%,-50%);padding:2px 7px;border-radius:11px;
+    font-size:11px;font-weight:600;letter-spacing:.02em;white-space:nowrap;
+    background:rgba(10,14,20,.82);border:1px solid rgba(255,255,255,.16);
+    backdrop-filter:blur(6px);transition:opacity .12s}
+  .lab.available{color:#7ee2a8;border-color:rgba(126,226,168,.45)}
+  .lab.reserved {color:#f2c66b;border-color:rgba(242,198,107,.45)}
+  .lab.sold     {color:#ff8b8b;border-color:rgba(255,139,139,.4);opacity:.6}
+  #hud{position:absolute;top:0;left:0;padding:14px 16px;pointer-events:none;
+    text-shadow:0 1px 6px rgba(0,0,0,.8)}
+  #hud b{font-size:19px;letter-spacing:-.01em}
+  #hud .sub{opacity:.62;font-size:11.5px;margin-top:2px}
+  #ctl{position:absolute;bottom:0;left:0;padding:14px 16px;display:flex;gap:7px;align-items:center}
+  button{font:inherit;font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;
+    color:#e8edf5;background:rgba(22,28,38,.86);border:1px solid rgba(255,255,255,.14);
+    backdrop-filter:blur(8px)}
+  button:hover{background:rgba(38,48,64,.9)}
+  button.on{background:#c8a86a;color:#1a1206;border-color:#c8a86a}
+  #card{position:absolute;top:14px;right:16px;width:214px;padding:13px 15px;border-radius:12px;
+    background:rgba(14,19,27,.9);border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(12px);
+    opacity:0;transition:opacity .14s;pointer-events:none}
+  #card.show{opacity:1}
+  #card .n{font-size:23px;font-weight:700;letter-spacing:-.02em}
+  #card .st{display:inline-block;margin:5px 0 9px;padding:1.5px 9px;border-radius:20px;
+    font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+  #card dl{display:grid;grid-template-columns:auto auto;gap:4px 10px;margin:0;font-size:12px}
+  #card dt{opacity:.55} #card dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+  #bar{position:absolute;bottom:0;left:0;height:2px;background:#c8a86a;transition:width .2s;width:0;
+    pointer-events:none}
+  #hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);opacity:.5;font-size:11.5px;
+    pointer-events:none;transition:opacity .4s}
+</style>
+
+<div id="stage">
+  <canvas id="plate"></canvas>
+  <canvas id="gl"></canvas>
+  <div id="labels"></div>
+  <div id="hud"><b>SM7 — exterior orbit</b><div class="sub" id="sub">loading…</div></div>
+  <div id="card"></div>
+  <div id="ctl">
+    <button id="btnNight">night</button>
+    <button id="btnLabels" class="on">labels</button>
+    <button id="btnSpin">auto-spin</button>
+    <button id="btnDebug">show colliders</button>
+  </div>
+  <div id="hint">drag to rotate</div>
+  <div id="bar"></div>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+
+// ───────────────────────────────────────────── constants recovered from the asset
+const FRAMES   = 120;              // CameraPath children == rendered stills
+const PLATE_AR = 16/9;             // 1440x810 and 3840x2160
+const YFOV     = 60.01;            // degrees, from the glTF camera
+const SPRITE   = {cols:10, rows:12, tw:320, th:180};   // 3200x2160 spritesheet
+const A = './assets';
+
+const $ = s => document.querySelector(s);
+const plate = $('#plate'), pctx = plate.getContext('2d', {alpha:false});
+
+// ───────────────────────────────────────────── state
+let frame = 0, night = false, showLabels = true, spin = false, debug = false;
+let hovered = null, selected = null;
+const bitmaps = {day:new Array(FRAMES), night:new Array(FRAMES)};
+let sprite = null;                          // instant low-res proxy
+let pathNodes = [], colliders = [], units = {}, bestFrame = {};
+
+// ───────────────────────────────────────────── renderer (transparent, over the plate)
+const renderer = new THREE.WebGLRenderer({canvas:$('#gl'), alpha:true, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(YFOV, PLATE_AR, 0.3, 6000);
+
+/* Registration math — the part that is easy to get wrong.
+   The plate is drawn `cover`. When the window is wider than 16:9 the top and
+   bottom of the render are cropped, so the camera's VERTICAL fov must shrink to
+   keep the horizontal fov equal to the plate's. When it's taller, the sides are
+   cropped and the vertical fov is unchanged. Get this wrong and your click
+   targets drift away from the building as the window resizes. */
+function resize(){
+  const w = innerWidth, h = innerHeight, av = w/h;
+  renderer.setSize(w, h, false);
+  plate.width = w * Math.min(devicePixelRatio,2); plate.height = h * Math.min(devicePixelRatio,2);
+  camera.aspect = av;
+  camera.fov = av > PLATE_AR
+    ? 2*Math.atan(Math.tan(THREE.MathUtils.degToRad(YFOV)/2) * PLATE_AR/av) * 180/Math.PI
+    : YFOV;
+  camera.updateProjectionMatrix();
+  drawPlate();
+}
+addEventListener('resize', resize);
+
+// ───────────────────────────────────────────── plate drawing (cover fit)
+function drawPlate(){
+  const src = bitmaps[night?'night':'day'][frame] || bitmaps.day[frame];
+  const W = plate.width, H = plate.height;
+  if (src){
+    const s = Math.max(W/src.width, H/src.height);
+    const dw = src.width*s, dh = src.height*s;
+    pctx.drawImage(src, (W-dw)/2, (H-dh)/2, dw, dh);
+  } else if (sprite){
+    // fall back to the 320x180 tile until the real frame is decoded
+    const c = frame % SPRITE.cols, r = Math.floor(frame / SPRITE.cols);
+    const s = Math.max(W/SPRITE.tw, H/SPRITE.th);
+    const dw = SPRITE.tw*s, dh = SPRITE.th*s;
+    pctx.imageSmoothingQuality = 'high';
+    pctx.drawImage(sprite, c*SPRITE.tw, r*SPRITE.th, SPRITE.tw, SPRITE.th,
+                   (W-dw)/2, (H-dh)/2, dw, dh);
+  }
+}
+
+// ───────────────────────────────────────────── camera sync — the whole trick
+function applyFrame(){
+  const n = pathNodes[frame];
+  if (!n) return;
+  n.getWorldPosition(camera.position);
+  n.getWorldQuaternion(camera.quaternion);
+  drawPlate();
+}
+
+// ───────────────────────────────────────────── load
+const statusColor = {available:0x5fd48b, reserved:0xe8b74f, sold:0xff6b6b};
+
+async function boot(){
+  const sub = $('#sub');
+
+  // 1. inventory + baked best-frame table
+  const [inv, bf] = await Promise.all([
+    fetch(`${A}/data/apartments.json`).then(r=>r.json()),
+    fetch(`${A}/data/best_frame_by_unit.json`).then(r=>r.json()).catch(()=>({}))
+  ]);
+  bestFrame = bf;
+  for (const b of inv) for (const a of b.apartments) units[String(a.mappingName)] = a;
+
+  // 2. spritesheet first — one request, whole orbit scrubbable immediately
+  sprite = await createImageBitmap(await (await fetch(`${A}/sprites/A_day.avif`)).blob());
+  drawPlate();
+  sub.textContent = 'spritesheet ready — scrubbable';
+
+  // 3. collider scene
+  const gltf = await new GLTFLoader().loadAsync(`${A}/scene10.glb`);
+  const root = gltf.scene;
+  root.updateWorldMatrix(true, true);
+
+  const pathParent = root.getObjectByName('_73_CameraPath');
+  pathNodes = new Array(FRAMES);
+  for (const c of pathParent.children){
+    const i = parseInt(c.name.replace(/^_\d+_/, ''), 10);
+    pathNodes[i] = c;
+  }
+
+  // depth-only proxy: fills the z-buffer so highlights occlude correctly,
+  // but never draws a pixel of colour.
+  const depthMat = new THREE.MeshBasicMaterial({colorWrite:false});
+  // depthTest:false — the building massing collider writes depth and would
+  // otherwise swallow the apartment wireframes sitting on its skin.
+  const dbgMat   = new THREE.MeshBasicMaterial({color:0x4cc2ff, wireframe:true,
+                                                transparent:true, opacity:.55,
+                                                depthTest:false});
+  const aptGroup = root.getObjectByName('_4_Apartment_Colliders');
+  const bldGroup = root.getObjectByName('_1_Building_Colliders');
+
+  bldGroup.traverse(o => { if (o.isMesh) o.material = depthMat; });
+
+  /* NOTE: three.js sanitises glTF node names — PropertyBinding.sanitizeNodeName
+     strips [ ] . : / — so the authored `_55_211_[12]` arrives as `_55_211_12`.
+     Accept both, or you silently get zero colliders and the raw (opaque, black)
+     collider material paints over your render. */
+  const APT_RE = /^_\d+_(\d+)_\[?(\d+)\]?$/;
+  aptGroup.traverse(o => {
+    if (!o.isMesh) return;
+    const m = o.name.match(APT_RE);
+    if (!m) return;
+    o.userData.unit = m[1];
+    o.material = depthMat;
+    o.geometry.computeBoundingSphere();
+    // average outward normal in world space — cheap facing test for labels
+    const na = o.geometry.attributes.normal, nm = new THREE.Matrix3().getNormalMatrix(o.matrixWorld);
+    const avg = new THREE.Vector3();
+    for (let i=0;i<na.count;i++) avg.add(new THREE.Vector3(na.getX(i),na.getY(i),na.getZ(i)));
+    o.userData.normal = avg.normalize().applyMatrix3(nm).normalize();
+    o.userData.center = o.geometry.boundingSphere.center.clone().applyMatrix4(o.matrixWorld);
+    colliders.push(o);
+  });
+  scene.add(root);
+  window.__dbg = {root, dbgMat, depthMat};
+
+  // highlight overlay — same geometry, drawn again on top of its own depth
+  hi = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({
+    color:0xffffff, transparent:true, opacity:.34, depthTest:true,
+    depthWrite:false, side:THREE.DoubleSide}));
+  hi.material.depthFunc = THREE.LessEqualDepth;
+  hi.visible = false; hi.renderOrder = 10;
+  scene.add(hi);
+
+  resize(); applyFrame(); buildLabels();
+  sub.textContent = `${colliders.length} units · ${FRAMES} frames · decoding…`;
+
+  // 4. decode the real frames, nearest-to-current first
+  await decodeAll('day');
+  sub.textContent = `${colliders.length} units · ${FRAMES} frames · 1440p ready`;
+  // night is NOT fetched here — see #btnNight. Halves the cold-load payload.
+}
+let hi;
+
+async function decodeAll(set){
+  const order = [...Array(FRAMES).keys()]
+    .sort((a,b) => Math.min(Math.abs(a-frame),FRAMES-Math.abs(a-frame))
+                 - Math.min(Math.abs(b-frame),FRAMES-Math.abs(b-frame)));
+  let done = 0;
+  const dir = set==='day' ? 'day1440' : 'night1440';
+  const pool = 8;
+  await Promise.all(Array.from({length:pool}, async (_,k) => {
+    for (let i=k; i<order.length; i+=pool){
+      const f = order[i];
+      try{
+        const b = await (await fetch(`${A}/frames/${dir}/${f}.avif`)).blob();
+        bitmaps[set][f] = await createImageBitmap(b);
+      }catch(e){}
+      if (++done % 4 === 0 && set === (night?'night':'day')){
+        $('#bar').style.width = (100*done/FRAMES)+'%';
+        if (!bitmaps[set][frame]) {} else drawPlate();
+      }
+    }
+  }));
+  $('#bar').style.width = set===(night?'night':'day') ? '0' : $('#bar').style.width;
+  drawPlate();
+}
+
+// ───────────────────────────────────────────── labels
+const labEls = {};
+function buildLabels(){
+  const wrap = $('#labels');
+  for (const c of colliders){
+    const u = c.userData.unit, rec = units[u];
+    const el = document.createElement('div');
+    el.className = 'lab ' + ((rec && rec.status) || 'available');
+    el.textContent = u;
+    wrap.appendChild(el); labEls[u] = el;
+  }
+}
+const _v = new THREE.Vector3(), _ray = new THREE.Raycaster();
+function updateLabels(){
+  const show = showLabels;
+  for (const c of colliders){
+    const el = labEls[c.userData.unit];
+    if (!show){ el.style.opacity = 0; continue; }
+    /* Facing test instead of a raycast: a per-label raycast against 68 colliders
+       is ~4.6k intersection tests per frame and tanks the scrub. The collider's
+       averaged outward normal vs the view direction is O(1) and, because every
+       unit sits on the building skin, gives the same answer. */
+    _v.copy(c.userData.center);
+    const dir = _v.clone().sub(camera.position).normalize();
+    const facing = c.userData.normal.dot(dir) < -0.15;
+    _v.project(camera);
+    if (!facing || _v.z > 1 || Math.abs(_v.x)>1 || Math.abs(_v.y)>1){ el.style.opacity = 0; continue; }
+    el.style.opacity = (hovered===c || selected===c) ? 1 : .8;
+    el.style.left = ((_v.x*.5+.5)*innerWidth)+'px';
+    el.style.top  = ((-_v.y*.5+.5)*innerHeight)+'px';
+  }
+}
+
+// ───────────────────────────────────────────── interaction
+/* Bind to the WebGL canvas, NOT to #stage.
+   #stage is an ancestor of the button bar, so a pointerdown on a button used to
+   bubble up here and hit setPointerCapture — which retargets the rest of the
+   gesture (and the synthesised click) to the capturing element, so the button's
+   own onclick never fired. #gl is a *sibling* of #ctl, so button input never
+   reaches it. Symptom if you get this wrong: buttons dead with a mouse but fine
+   under touch emulation, because touch synthesises its click by another path. */
+let dragging=false, lastX=0, vel=0, moved=0;
+const surface = $('#gl');
+surface.addEventListener('pointerdown', e=>{dragging=true;lastX=e.clientX;vel=0;moved=0;
+  surface.setPointerCapture(e.pointerId); $('#hint').style.opacity=0;});
+surface.addEventListener('pointermove', e=>{
+  if (dragging){
+    const dx = e.clientX-lastX; lastX=e.clientX; moved+=Math.abs(dx);
+    vel = dx*0.35;
+    step(-dx*0.35);
+  } else pick(e);
+});
+surface.addEventListener('pointerup', e=>{
+  dragging=false;
+  if (moved < 4) click(e);
+});
+function step(d){
+  frame = ((Math.round(frame + d) % FRAMES) + FRAMES) % FRAMES;
+  applyFrame();
+}
+function pick(e){
+  const ndc = new THREE.Vector2((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1);
+  _ray.setFromCamera(ndc, camera);
+  const hit = _ray.intersectObjects(colliders, false)[0];
+  const next = hit ? hit.object : null;
+  if (next !== hovered){ hovered = next; updateHighlight(); }
+  surface.style.cursor = next ? 'pointer' : 'grab';
+}
+function click(e){
+  selected = hovered;
+  const card = $('#card');
+  if (!selected){ card.classList.remove('show'); return; }
+  const rec = units[selected.userData.unit] || {};
+  const ae = rec.additionalElements || {};
+  const col = {available:'#7ee2a8',reserved:'#f2c66b',sold:'#ff8b8b'}[rec.status]||'#aaa';
+  card.innerHTML = `<div class="n">${selected.userData.unit}</div>
+    <span class="st" style="background:${col}22;color:${col}">${rec.status||'—'}</span>
+    <dl><dt>Area</dt><dd>${rec.area||'—'} m²</dd>
+        <dt>Internal</dt><dd>${ae.internalAreaSqm||'—'} m²</dd>
+        <dt>Rooms</dt><dd>${rec.rooms??'—'}</dd>
+        <dt>Type</dt><dd>${ae.room||'—'}</dd>
+        <dt>Floor</dt><dd>${ae.floor??'—'}</dd>
+        <dt>View</dt><dd>${ae.view||'—'}</dd></dl>`;
+  card.classList.add('show');
+}
+function updateHighlight(){
+  const t = hovered || selected;
+  if (!t){ hi.visible=false; return; }
+  hi.geometry = t.geometry;
+  t.updateWorldMatrix(true,false);
+  hi.matrix.copy(t.matrixWorld); hi.matrixAutoUpdate=false;
+  const rec = units[t.userData.unit];
+  hi.material.color.setHex(statusColor[rec && rec.status] ?? 0xffffff);
+  hi.visible = true;
+}
+
+// spin-to-unit: uses the offline-baked best frame
+window.goToUnit = u => {
+  const target = bestFrame[u] ? bestFrame[u].bestFrame : frame;
+  const d = ((target-frame+FRAMES*1.5)%FRAMES)-FRAMES/2;   // shortest way round
+  const t0 = performance.now(), f0 = frame;
+  (function anim(){
+    const k = Math.min(1,(performance.now()-t0)/700);
+    frame = ((Math.round(f0 + d*(1-Math.pow(1-k,3))) % FRAMES)+FRAMES)%FRAMES;
+    applyFrame();
+    if (k<1) requestAnimationFrame(anim);
+  })();
+};
+
+let nightLoaded = false;
+$('#btnNight').onclick  = e => {
+  night = !night; e.target.classList.toggle('on', night); drawPlate();
+  if (night && !nightLoaded){ nightLoaded = true; decodeAll('night'); }
+};
+$('#btnLabels').onclick = e => {showLabels=!showLabels; e.target.classList.toggle('on',showLabels);};
+$('#btnSpin').onclick   = e => {spin=!spin; e.target.classList.toggle('on',spin);};
+$('#btnDebug').onclick  = e => {
+  debug=!debug; e.target.classList.toggle('on',debug);
+  const {dbgMat, depthMat} = window.__dbg;
+  for (const c of colliders) c.material = debug ? dbgMat : depthMat;
+};
+
+// ───────────────────────────────────────────── loop
+let acc=0;
+function tick(){
+  requestAnimationFrame(tick);
+  if (spin && !dragging){ acc += 0.35; if (acc>=1){ step(Math.floor(acc)); acc%=1; } }
+  else if (!dragging && Math.abs(vel)>0.15){ step(-vel); vel*=0.88; }
+  updateLabels();
+  renderer.render(scene, camera);
+}
+boot().then(tick).catch(e => { $('#sub').textContent = 'error: '+e.message; console.error(e); });
+</script>

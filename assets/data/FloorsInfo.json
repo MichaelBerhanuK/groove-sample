@@ -1,0 +1,277 @@
+{
+  "InvestmentName": null,
+  "FloorInfos": [
+    {
+      "MappingName": "101",
+      "Floors": 1
+    },
+    {
+      "MappingName": "102",
+      "Floors": 1
+    },
+    {
+      "MappingName": "103",
+      "Floors": 1
+    },
+    {
+      "MappingName": "104",
+      "Floors": 1
+    },
+    {
+      "MappingName": "105",
+      "Floors": 1
+    },
+    {
+      "MappingName": "106",
+      "Floors": 1
+    },
+    {
+      "MappingName": "107",
+      "Floors": 1
+    },
+    {
+      "MappingName": "201",
+      "Floors": 1
+    },
+    {
+      "MappingName": "202",
+      "Floors": 1
+    },
+    {
+      "MappingName": "203",
+      "Floors": 1
+    },
+    {
+      "MappingName": "204",
+      "Floors": 1
+    },
+    {
+      "MappingName": "205",
+      "Floors": 1
+    },
+    {
+      "MappingName": "206",
+      "Floors": 1
+    },
+    {
+      "MappingName": "207",
+      "Floors": 1
+    },
+    {
+      "MappingName": "208",
+      "Floors": 1
+    },
+    {
+      "MappingName": "209",
+      "Floors": 1
+    },
+    {
+      "MappingName": "210",
+      "Floors": 1
+    },
+    {
+      "MappingName": "211",
+      "Floors": 1
+    },
+    {
+      "MappingName": "212",
+      "Floors": 1
+    },
+    {
+      "MappingName": "213",
+      "Floors": 1
+    },
+    {
+      "MappingName": "214",
+      "Floors": 1
+    },
+    {
+      "MappingName": "215",
+      "Floors": 1
+    },
+    {
+      "MappingName": "216",
+      "Floors": 1
+    },
+    {
+      "MappingName": "217",
+      "Floors": 1
+    },
+    {
+      "MappingName": "218",
+      "Floors": 1
+    },
+    {
+      "MappingName": "301",
+      "Floors": 1
+    },
+    {
+      "MappingName": "302",
+      "Floors": 1
+    },
+    {
+      "MappingName": "303",
+      "Floors": 1
+    },
+    {
+      "MappingName": "304",
+      "Floors": 1
+    },
+    {
+      "MappingName": "305",
+      "Floors": 1
+    },
+    {
+      "MappingName": "306",
+      "Floors": 1
+    },
+    {
+      "MappingName": "307",
+      "Floors": 1
+    },
+    {
+      "MappingName": "308",
+      "Floors": 1
+    },
+    {
+      "MappingName": "309",
+      "Floors": 1
+    },
+    {
+      "MappingName": "310",
+      "Floors": 1
+    },
+    {
+      "MappingName": "311",
+      "Floors": 1
+    },
+    {
+      "MappingName": "312",
+      "Floors": 1
+    },
+    {
+      "MappingName": "313",
+      "Floors": 1
+    },
+    {
+      "MappingName": "314",
+      "Floors": 1
+    },
+    {
+      "MappingName": "315",
+      "Floors": 1
+    },
+    {
+      "MappingName": "316",
+      "Floors": 1
+    },
+    {
+      "MappingName": "401",
+      "Floors": 1
+    },
+    {
+      "MappingName": "402",
+      "Floors": 1
+    },
+    {
+      "MappingName": "403",
+      "Floors": 1
+    },
+    {
+      "MappingName": "404",
+      "Floors": 1
+    },
+    {
+      "MappingName": "405",
+      "Floors": 1
+    },
+    {
+      "MappingName": "406",
+      "Floors": 2
+    },
+    {
+      "MappingName": "407",
+      "Floors": 1
+    },
+    {
+      "MappingName": "408",
+      "Floors": 1
+    },
+    {
+      "MappingName": "409",
+      "Floors": 1
+    },
+    {
+      "MappingName": "410",
+      "Floors": 1
+    },
+    {
+      "MappingName": "411",
+      "Floors": 1
+    },
+    {
+      "MappingName": "412",
+      "Floors": 1
+    },
+    {
+      "MappingName": "413",
+      "Floors": 1
+    },
+    {
+      "MappingName": "414",
+      "Floors": 1
+    },
+    {
+      "MappingName": "415",
+      "Floors": 3
+    },
+    {
+      "MappingName": "416",
+      "Floors": 3
+    },
+    {
+      "MappingName": "417",
+      "Floors": 1
+    },
+    {
+      "MappingName": "501",
+      "Floors": 1
+    },
+    {
+      "MappingName": "502",
+      "Floors": 1
+    },
+    {
+      "MappingName": "503",
+      "Floors": 1
+    },
+    {
+      "MappingName": "504",
+      "Floors": 1
+    },
+    {
+      "MappingName": "506",
+      "Floors": 2
+    },
+    {
+      "MappingName": "507",
+      "Floors": 1
+    },
+    {
+      "MappingName": "508",
+      "Floors": 1
+    },
+    {
+      "MappingName": "509",
+      "Floors": 2
+    },
+    {
+      "MappingName": "510",
+      "Floors": 1
+    },
+    {
+      "MappingName": "513",
+      "Floors": 1
+    }
+  ]
+}
