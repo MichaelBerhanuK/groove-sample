@@ -216,6 +216,13 @@ async function boot(){
   resize(); applyFrame(); buildLabels();
   sub.textContent = `${colliders.length} units · ${FRAMES} frames · decoding…`;
 
+  /* Start rendering NOW — the scene is interactive the moment the colliders and
+     camera path exist. Do not gate this on the image decode: boot() used to be
+     awaited before tick() ever ran, so on anything slower than localhost the page
+     sat there with no labels, no picking and a blurred sprite plate until all 120
+     frames had landed. Only surfaced once it was on real hosting. */
+  tick();
+
   // 4. decode the real frames, nearest-to-current first
   await decodeAll('day');
   sub.textContent = `${colliders.length} units · ${FRAMES} frames · 1440p ready`;
@@ -378,5 +385,5 @@ function tick(){
   updateLabels();
   renderer.render(scene, camera);
 }
-boot().then(tick).catch(e => { $('#sub').textContent = 'error: '+e.message; console.error(e); });
+boot().catch(e => { $('#sub').textContent = 'error: '+e.message; console.error(e); });
 </script>
