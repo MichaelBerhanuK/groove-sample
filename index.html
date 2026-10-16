@@ -1,15 +1,16 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Exterior orbit viewer — reference implementation</title>
 <style>
   html,body{margin:0;height:100%;background:#11151c;overflow:hidden;
     font:13px/1.45 ui-sans-serif,system-ui,-apple-system,sans-serif;color:#e8edf5}
-  #stage{position:fixed;inset:0}
+  #stage{position:fixed;inset:0;height:100dvh}
   /* the pre-rendered plate. object-fit:cover + matching FOV math keeps the
      invisible 3D scene registered to the photo at any window aspect. */
   #plate{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
     image-rendering:auto;display:block}
-  #gl{position:absolute;inset:0;width:100%;height:100%}
+  #gl{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
   #labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
   .lab{position:absolute;transform:translate(-50%,-50%);padding:2px 7px;border-radius:11px;
     font-size:11px;font-weight:600;letter-spacing:.02em;white-space:nowrap;
@@ -23,7 +24,7 @@
   #hud b{font-size:19px;letter-spacing:-.01em}
   #hud .sub{opacity:.62;font-size:11.5px;margin-top:2px}
   #ctl{position:absolute;bottom:0;left:0;padding:14px 16px;display:flex;gap:7px;align-items:center}
-  button{font:inherit;font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;
+  button{min-height:40px;font:inherit;font-size:12px;padding:7px 12px;border-radius:8px;cursor:pointer;
     color:#e8edf5;background:rgba(22,28,38,.86);border:1px solid rgba(255,255,255,.14);
     backdrop-filter:blur(8px)}
   button:hover{background:rgba(38,48,64,.9)}
@@ -39,15 +40,47 @@
   #card dt{opacity:.55} #card dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
   #bar{position:absolute;bottom:0;left:0;height:2px;background:#c8a86a;transition:width .2s;width:0;
     pointer-events:none}
-  #hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);opacity:.5;font-size:11.5px;
+  #introShade{position:absolute;inset:0;z-index:20;background:rgba(5,8,12,.52);
     pointer-events:none;transition:opacity .4s}
+  #hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;align-items:center;
+    gap:7px;padding:7px 11px;border:1px solid rgba(255,255,255,.14);border-radius:999px;
+    background:rgba(14,19,27,.72);backdrop-filter:blur(8px);font-size:11.5px;font-weight:600;
+    white-space:nowrap;pointer-events:none;transition:opacity .4s;z-index:21}
+  #stage.intro-dismissed #introShade,#stage.intro-dismissed #hint{opacity:0}
+  #hint .hand{display:inline-block;font-size:18px;line-height:1;animation:hint-drag 1.6s ease-in-out infinite}
+  @keyframes hint-drag{
+    0%,100%{transform:translateX(-3px) rotate(-8deg)}
+    50%{transform:translateX(6px) rotate(5deg)}
+  }
+  @media (prefers-reduced-motion:reduce){#hint .hand{animation:none}}
+  @media (pointer:coarse){#ctl button{min-height:44px;font-size:13px}}
+
+  @media (max-width:640px){
+    #hud{padding:calc(12px + env(safe-area-inset-top)) 14px 12px}
+    #hud b{font-size:17px}
+    #ctl{left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+    #ctl button{min-height:44px;padding:9px 12px;font-size:14px;font-weight:600}
+    #hint{font-size:12px}
+    #card{top:auto;right:12px;bottom:calc(116px + env(safe-area-inset-bottom));left:12px;
+      width:auto;max-width:320px;margin-left:auto;padding:12px 14px}
+    #card .n{font-size:21px}
+    .lab{padding:4px 8px;font-size:12px}
+  }
+
+  @media (max-height:500px) and (orientation:landscape){
+    #ctl{left:0;right:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;
+      padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
+    #ctl button{min-height:44px;padding:8px 10px;font-size:13px;font-weight:600}
+    #card{bottom:calc(68px + env(safe-area-inset-bottom));left:auto;width:210px}
+  }
 </style>
 
 <div id="stage">
   <canvas id="plate"></canvas>
   <canvas id="gl"></canvas>
   <div id="labels"></div>
-  <div id="hud"><b>SM7 — exterior orbit</b><div class="sub" id="sub">loading…</div></div>
+  <div id="hud"><b>Groove Residences - Qatar</b><div class="sub" id="sub">loading…</div></div>
   <div id="card"></div>
   <div id="ctl">
     <button id="btnNight">night</button>
@@ -55,7 +88,8 @@
     <button id="btnSpin">auto-spin</button>
     <button id="btnDebug">show colliders</button>
   </div>
-  <div id="hint">drag to rotate</div>
+  <div id="introShade" aria-hidden="true"></div>
+  <div id="hint"><span class="hand" aria-hidden="true">👆</span><span>Click or tap, then drag</span></div>
   <div id="bar"></div>
 </div>
 
@@ -225,7 +259,7 @@ async function boot(){
 
   // 4. decode the real frames, nearest-to-current first
   await decodeAll('day');
-  sub.textContent = `${colliders.length} units · ${FRAMES} frames · 1440p ready`;
+  sub.textContent = `${colliders.length} units`;
   // night is NOT fetched here — see #btnNight. Halves the cold-load payload.
 }
 let hi;
@@ -297,8 +331,11 @@ function updateLabels(){
    under touch emulation, because touch synthesises its click by another path. */
 let dragging=false, lastX=0, vel=0, moved=0;
 const surface = $('#gl');
+const dismissIntro = () => $('#stage').classList.add('intro-dismissed');
+addEventListener('pointerdown', dismissIntro, {once:true, capture:true});
+addEventListener('keydown', dismissIntro, {once:true});
 surface.addEventListener('pointerdown', e=>{dragging=true;lastX=e.clientX;vel=0;moved=0;
-  surface.setPointerCapture(e.pointerId); $('#hint').style.opacity=0;});
+  surface.setPointerCapture(e.pointerId);});
 surface.addEventListener('pointermove', e=>{
   if (dragging){
     const dx = e.clientX-lastX; lastX=e.clientX; moved+=Math.abs(dx);
@@ -308,8 +345,9 @@ surface.addEventListener('pointermove', e=>{
 });
 surface.addEventListener('pointerup', e=>{
   dragging=false;
-  if (moved < 4) click(e);
+  if (moved < 4){ pick(e); click(e); }
 });
+surface.addEventListener('pointercancel', ()=>{ dragging=false; });
 function step(d){
   frame = ((Math.round(frame + d) % FRAMES) + FRAMES) % FRAMES;
   applyFrame();
